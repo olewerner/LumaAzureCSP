@@ -1,0 +1,27 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+  "parameters": {
+    "omsRecoveryServicesVaultName": {
+      "value": "ahdemoomsvault1"
+    },
+    "omsAutomationAccountName": {
+      "value": "ahdemoomsautosvc1"
+    },
+    "omsAutomationAccountLocation": {
+      "value": "West Europe"
+    },
+    "azureServiceAccountUserName": {
+      "value": "smbsvc@ITRM379349.onmicrosoft.com"
+    },
+    "azureServiceAccountPassword": {
+      "value": "Abc-12345"
+    },
+    "keyVaultName": {
+      "value": "KeyVaultSMB"
+    },
+    "objectId": {
+      "value": "1d7e562d-65b7-415f-b22f-cb92409433a2"
+    }
+  }
+}

@@ -1,0 +1,45 @@
+﻿{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "adVmName": {
+      "value": "ahdemodc1"
+    },
+    "adVmSize": {
+      "value": "Standard_A2_v2"
+    },
+    "domainName": {
+      "value": "ahdemosmb.no"
+    },
+    "domainUsername": {
+      "value": "ahadmin"
+    },
+    "domainPassword": {
+      "value": "Passw0rd99"
+    },
+    "rdsVmName": {
+      "value": "ahdemords"
+    },
+    "rdsVmSize": {
+      "value": "Standard_DS2_v2"
+    },
+    "rdsDnsPrefix": {
+      "value": "ahdemords123"
+    },
+    "appVmName": {
+      "value": "ahdemoapp1"
+    },
+    "appDnsPrefix": {
+      "value": "ahdemoapppub123"
+    },
+    "appVmSize": {
+      "value": "Standard_A2_v2"
+    },
+    "localAdminUsername": {
+      "value": "localadmin"
+    },
+    "localAdminPassword": {
+      "value": "Passw0rd99"
+    }
+  }
+}

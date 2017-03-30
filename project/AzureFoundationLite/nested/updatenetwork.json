@@ -1,0 +1,797 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "virtualNetworkName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the Virtual Network to Create"
+      }
+    },
+    "virtualNetworkAddressRange": {
+      "type": "string",
+      "metadata": {
+        "description": "The address range of the new VNET in CIDR format"
+      },
+      "defaultValue": "10.0.0.0/16"
+    },
+    "subnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the subnet created in the new VNET"
+      }
+    },
+    "subnetAddressPrefix": {
+      "type": "string",
+      "metadata": {
+        "description": "The address range of the subnet created in the new VNET"
+      },
+      "defaultValue": "10.0.0.0/24"
+    },
+    "subnet2Name": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the subnet"
+      }
+    },
+    "subnet2AddressPrefix": {
+      "type": "string",
+      "defaultValue": "10.0.254.0/24",
+      "metadata": {
+        "description": "Subnet prefix"
+      }
+    },
+    "adNicIPAddress": {
+      "type": "array",
+      "metadata": {
+        "description": "The DNS address(es) of the DNS Server(s) used by the VNET"
+      }
+    }
+  },
+  "variables": {
+    "apiVersion": {
+      "nsg": "2015-06-15",
+      "network": {
+        "virtualNetworks": "2016-03-30"
+      }
+    },
+    "networkSecurityGroups":[
+      {
+        "name": "[concat(parameters('subnetName'), '-nsg')]",
+        "properties": {
+          "securityRules": [
+            {
+              "name": "allow-localsubnet-inbound",
+              "properties": {
+                "description": "Allow local subnet traffic - Inbound",
+                "priority": 500,
+                "sourceAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "*",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "allow-localsubnet-outbound",
+              "properties": {
+                "description": "Allow local subnet traffic - Outbound",
+                "priority": 501,
+                "sourceAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "*",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "allow-ntp-sync",
+              "properties": {
+                "description": "[concat('Allow NTP Sync from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 502,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "123",
+                "protocol": "Udp",
+                "access": "Allow",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "allow-ad-rpc",
+              "properties": {
+                "description": "[concat('Allow AD RPC from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 503,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "135",
+                "protocol": "Tcp",
+                "access": "Allow",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "allow-ad-kerberos-change",
+              "properties": {
+                "description": "[concat('Allow AD Kerberos change from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 504,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "464",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "allow-ad-ldap",
+              "properties": {
+                "description": "[concat('Allow AD LDAP from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 505,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "389",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "allow-ad-ldap-gc",
+              "properties": {
+                "description": "[concat('Allow AD LDAP GC from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 506,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "3268",
+                "protocol": "Tcp",
+                "access": "Allow",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "allow-ad-dns",
+              "properties": {
+                "description": "[concat('Allow AD DNS from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 507,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "53",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "allow-ad-kerberos",
+              "properties": {
+                "description": "[concat('Allow AD Kerberos  from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 508,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "88",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "allow-ad-smb",
+              "properties": {
+                "description": "[concat('Allow AD SMB from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 509,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "445",
+                "protocol": "Tcp",
+                "access": "Allow",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "allow-ad-dyn",
+              "properties": {
+                "description": "[concat('Allow AD DYN from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 510,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "49152-65535",
+                "protocol": "Tcp",
+                "access": "Allow",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "allow-rdp-subnets",
+              "properties": {
+                "description": "Allow RDP",
+                "priority": 511,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "3389",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "allow-powershell",
+              "properties": {
+                "description": "Allow PowerShell",
+                "priority": 512,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "5985-5986",
+                "protocol": "Tcp",
+                "access": "Allow",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "allow-tcp-internet-outbound",
+              "properties": {
+                "description": "Allow Internet Outbound - TCP",
+                "priority": 3990,
+                "sourceAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "Internet",
+                "destinationPortRange": "*",
+                "protocol": "Tcp",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "allow-udp-internet-outbound",
+              "properties": {
+                "description": "Allow Internet Outbound - UDP",
+                "priority": 3991,
+                "sourceAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "Internet",
+                "destinationPortRange": "*",
+                "protocol": "Udp",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "[concat('deny-', parameters('subnetName') , '-TCPtraffic-Inbound')]",
+              "properties": {
+                "description": "[concat('Isolate the ', parameters('subnetName'), ' subnet from any network - Deny Inbound TCP')]",
+                "priority": 4000,
+                "sourceAddressPrefix": "*",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "*",
+                "protocol": "Tcp",
+                "access": "Deny",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "[concat('deny-', parameters('subnetName'), '-TCPtraffic-Outbound')]",
+              "properties": {
+                "description": "[concat('Isolate the ', parameters('subnetName'), ' subnet from any network - Deny Outbound TCP')]",
+                "priority": 4001,
+                "sourceAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "*",
+                "destinationPortRange": "*",
+                "protocol": "Tcp",
+                "access": "Deny",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "[concat('deny-', parameters('subnetName'), '-UDPtraffic-Inbound')]",
+              "properties": {
+                "description": "[concat('Isolate the ', parameters('subnetName'), ' subnet from any network - Deny Inbound UDP')]",
+                "priority": 4002,
+                "sourceAddressPrefix": "*",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "*",
+                "protocol": "Udp",
+                "access": "Deny",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "[concat('deny-', parameters('subnetName'), '-UDPtraffic-Outbound')]",
+              "properties": {
+                "description": "[concat('Isolate the ', parameters('subnetName'), ' subnet from any network - Deny Outbound UDP')]",
+                "priority": 4003,
+                "sourceAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "*",
+                "destinationPortRange": "*",
+                "protocol": "Udp",
+                "access": "Deny",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "[concat('allow-', parameters('subnet2Name'), '-' , parameters('subnetName'), '-ICMPtraffic-Inbound')]",
+              "properties": {
+                "description": "[concat('Allow ICMP from ', parameters('subnet2Name'), ' subnet to ', parameters('subnetName'), ' subnet')]",
+                "priority": 4004,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "*",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "[concat('allow-', parameters('subnetName'), '-' ,parameters('subnet2Name'), '-ICMPtraffic-Outbound')]",
+              "properties": {
+                "description": "[concat('Allow ICMP from ', parameters('subnetName'), ' subnet to ', parameters('subnet2Name'), ' subnet')]",
+                "priority": 4005,
+                "sourceAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "destinationPortRange": "*",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "[concat('deny-', parameters('subnetName'), '-any-Inbound')]",
+              "properties": {
+                "description": "[concat('Deny any inbound traffic to subnet ', parameters('subnetName'))]",
+                "priority": 4006,
+                "sourceAddressPrefix": "*",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "*",
+                "protocol": "*",
+                "access": "Deny",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "[concat('deny-', parameters('subnetName'), '-any-Outbound')]",
+              "properties": {
+                "description": "[concat('Deny any outbound traffic to subnet ', parameters('subnetName'))]",
+                "priority": 4007,
+                "sourceAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "*",
+                "destinationPortRange": "*",
+                "protocol": "*",
+                "access": "Deny",
+                "direction": "Outbound"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "[concat(parameters('subnet2Name'), '-nsg')]",
+        "properties": {
+          "securityRules": [
+            {
+              "name": "allow-localsubnet-inbound",
+              "properties": {
+                "description": "Allow local subnet traffic - Inbound",
+                "priority": 500,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "destinationPortRange": "*",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "allow-localsubnet-outbound",
+              "properties": {
+                "description": "Allow local subnet traffic - Outbound",
+                "priority": 501,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "destinationPortRange": "*",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "ntp-sync",
+              "properties": {
+                "description": "[concat('Allow NTP Sync from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 502,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "123",
+                "protocol": "Udp",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "ad-rpc",
+              "properties": {
+                "description": "[concat('Allow AD RPC from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 503,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "135",
+                "protocol": "Tcp",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "ad-kerberos-change",
+              "properties": {
+                "description": "[concat('Allow AD Kerberos change from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 504,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "464",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "ad-ldap",
+              "properties": {
+                "description": "[concat('Allow AD LDAP from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 505,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "389",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "ad-ldap-gc",
+              "properties": {
+                "description": "[concat('Allow AD LDAP GC from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 506,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "3268",
+                "protocol": "Tcp",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "ad-dns",
+              "properties": {
+                "description": "[concat('Allow AD DNS from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 507,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "53",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "ad-kerberos",
+              "properties": {
+                "description": "[concat('Allow AD Kerberos  from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 508,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "88",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "ad-smb",
+              "properties": {
+                "description": "[concat('Allow AD SMB from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 509,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "445",
+                "protocol": "Tcp",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "ad-dyn",
+              "properties": {
+                "description": "[concat('Allow AD DYN from', parameters('subnet2Name'), ' to ', parameters('subnetName'))]",
+                "priority": 510,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "49152-65535",
+                "protocol": "Tcp",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "allow-rdp-subnets",
+              "properties": {
+                "description": "Allow RDP",
+                "priority": 511,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "3389",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "allow-powershell",
+              "properties": {
+                "description": "Allow PowerShell",
+                "priority": 512,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "5985-5986",
+                "protocol": "Tcp",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "allow-rdp-internet",
+              "properties": {
+                "description": "Allow RDP from Internet",
+                "priority": 550,
+                "sourceAddressPrefix": "Internet",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "destinationPortRange": "3389",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Inbound"
+              }
+            },
+             {
+              "name": "allow-tcp-internet-outbound",
+              "properties": {
+                "description": "Allow Internet Outbound - TCP",
+                "priority": 3990,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "Internet",
+                "destinationPortRange": "*",
+                "protocol": "Tcp",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "allow-udp-internet-outbound",
+              "properties": {
+                "description": "Allow Internet Outbound - UDP",
+                "priority": 3991,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "Internet",
+                "destinationPortRange": "*",
+                "protocol": "Udp",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "[concat('deny-', parameters('subnet2Name') , '-TCPtraffic-Inbound')]",
+              "properties": {
+                "description": "[concat('Isolate the ', parameters('subnet2Name'), ' subnet from any network - Deny Inbound TCP')]",
+                "priority": 4000,
+                "sourceAddressPrefix": "*",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "destinationPortRange": "*",
+                "protocol": "Tcp",
+                "access": "Deny",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "[concat('deny-', parameters('subnet2Name'), '-TCPtraffic-Outbound')]",
+              "properties": {
+                "description": "[concat('Isolate the ', parameters('subnet2Name'), ' subnet from any network - Deny Outbound TCP')]",
+                "priority": 4001,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "*",
+                "destinationPortRange": "*",
+                "protocol": "Tcp",
+                "access": "Deny",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "[concat('deny-', parameters('subnet2Name'), '-UDPtraffic-Inbound')]",
+              "properties": {
+                "description": "[concat('Isolate the ', parameters('subnet2Name'), ' subnet from any network - Deny Inbound UDP')]",
+                "priority": 4002,
+                "sourceAddressPrefix": "*",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "destinationPortRange": "*",
+                "protocol": "Udp",
+                "access": "Deny",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "[concat('deny-', parameters('subnet2Name'), '-UDPtraffic-Outbound')]",
+              "properties": {
+                "description": "[concat('Isolate the ', parameters('subnet2Name'), ' subnet from any network - Deny Outbound UDP')]",
+                "priority": 4003,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "*",
+                "destinationPortRange": "*",
+                "protocol": "Udp",
+                "access": "Deny",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "[concat('allow-', parameters('subnetName'), '-' , parameters('subnet2Name'), '-ICMPtraffic-Inbound')]",
+              "properties": {
+                "description": "[concat('Allow ICMP from ', parameters('subnetName'), ' subnet to ', parameters('subnet2Name'), ' subnet')]",
+                "priority": 4004,
+                "sourceAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "destinationPortRange": "*",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "[concat('allow-', parameters('subnet2Name'), '-' ,parameters('subnetName'), '-ICMPtraffic-Outbound')]",
+              "properties": {
+                "description": "[concat('Allow ICMP from ', parameters('subnet2Name'), ' subnet to ', parameters('subnetName'), ' subnet')]",
+                "priority": 4005,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnetAddressPrefix')]",
+                "destinationPortRange": "*",
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Outbound"
+              }
+            },
+            {
+              "name": "[concat('deny-', parameters('subnet2Name'), '-any-Inbound')]",
+              "properties": {
+                "description": "[concat('Deny any inbound traffic to subnet ', parameters('subnet2Name'))]",
+                "priority": 4006,
+                "sourceAddressPrefix": "*",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "destinationPortRange": "*",
+                "protocol": "*",
+                "access": "Deny",
+                "direction": "Inbound"
+              }
+            },
+            {
+              "name": "[concat('deny-', parameters('subnet2Name'), '-any-Outbound')]",
+              "properties": {
+                "description": "[concat('Deny any outbound traffic to subnet ', parameters('subnet2Name'))]",
+                "priority": 4007,
+                "sourceAddressPrefix": "[parameters('subnet2AddressPrefix')]",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "*",
+                "destinationPortRange": "*",
+                "protocol": "*",
+                "access": "Deny",
+                "direction": "Outbound"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "resources": [
+    {
+      "name": "[variables('networkSecurityGroups')[0].name]",
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "[variables('apiVersion').nsg]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "displayName": "[concat('NSG - ', parameters('subnetName'))]"
+      },
+      "properties": "[variables('networkSecurityGroups')[0].properties]"
+    },
+    {
+      "name": "[variables('networkSecurityGroups')[1].name]",
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "[variables('apiVersion').nsg]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "displayName": "[concat('NSG - ', parameters('subnet2Name'))]"
+      },
+      "properties": "[variables('networkSecurityGroups')[1].properties]"
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "name": "[parameters('virtualNetworkName')]",
+      "apiVersion": "[variables('apiVersion').network.virtualNetworks]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/networkSecurityGroups/', variables('networkSecurityGroups')[0].name)]",
+        "[concat('Microsoft.Network/networkSecurityGroups/', variables('networkSecurityGroups')[1].name)]"
+      ],
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[parameters('virtualNetworkAddressRange')]"
+          ]
+        },
+        "dhcpOptions": {
+          "dnsServers": "[parameters('adNicIPAddress')]"
+        },
+        "subnets": [
+          {
+            "name": "[parameters('subnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('subnetAddressPrefix')]",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroups')[0].name)]"
+              }
+            }
+          },
+          {
+            "name": "[parameters('subnet2Name')]",
+            "properties": {
+              "addressPrefix": "[parameters('subnet2AddressPrefix')]",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroups')[1].name)]"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+  }
+}
